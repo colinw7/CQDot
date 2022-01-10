@@ -1,0 +1,6 @@
+digraph mygraph {
+  "A" -> "B"
+  "B" -> "C"
+  "D" -> "E"
+  "E" -> "F"
+}
