@@ -32,6 +32,7 @@ class App {
   Object *findObject(int id);
 
   void errorMsg(const std::string &str) const;
+//void debugMsg(const std::string &str) const;
 
  public:
   using Points = std::vector<QPointF>;

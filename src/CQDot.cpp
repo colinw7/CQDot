@@ -23,7 +23,7 @@ processFile(const std::string &filename)
   CJson::ValueP value;
 
   if (! json->loadFile(filename.c_str(), value)) {
-    std::cerr << "Parse failed\n";
+    errorMsg("Parse failed");
     return false;
   }
 
@@ -133,7 +133,7 @@ processFile(const std::string &filename)
     return p;
   };
 
-  auto decodePos = [](const std::string &s) {
+  auto decodePos = [&](const std::string &s) {
     auto qstr = QString::fromStdString(s);
 
     auto strs = qstr.split(",");
@@ -147,7 +147,7 @@ processFile(const std::string &filename)
       return QPointF(x, y);
     }
     else {
-      std::cerr << "Unhandled pos: " << s << "\n";
+      errorMsg("Unhandled pos: " + s);
       return QPointF();
     }
   };
@@ -195,7 +195,7 @@ processFile(const std::string &filename)
     return color;
   };
 
-  auto decodeStyle = [](const std::string &str, StyleData &style) {
+  auto decodeStyle = [&](const std::string &str, StyleData &style) {
     if      (str == "solid") {
       style.lineStyle = LineStyle::SOLID;
     }
@@ -216,11 +216,11 @@ processFile(const std::string &filename)
       style.lineWidth = std::stoi(sstr);
     }
     else {
-      std::cerr << "Invalid style: " << str << "\n";
+      errorMsg("Invalid style: " + str);
     }
   };
 
-  auto decodeAlign = [](const std::string &str) {
+  auto decodeAlign = [&](const std::string &str) {
     if      (str == "l")
       return Qt::AlignLeft;
     else if (str == "c")
@@ -228,7 +228,7 @@ processFile(const std::string &filename)
     else if (str == "r")
       return Qt::AlignRight;
     else {
-      std::cerr << "Invalid align: " << str << "\n";
+      errorMsg("Invalid align: " + str);
       return Qt::AlignHCenter;
     }
   };
@@ -241,7 +241,7 @@ processFile(const std::string &filename)
   auto stringToBool = [](const QString &str) {
     if (str == "true" ) return true;
     if (str == "false") return false;
-    std::cerr << "Unhandled bool : " << str.toStdString() << "\n";
+    errorMsg("Unhandled bool : " + str.toStdString());
     return false;
   };
 #endif
@@ -357,7 +357,7 @@ processFile(const std::string &filename)
           auto *drawObj = objValue->cast<CJson::Object>();
 
           for (const auto &nv1 : drawObj->nameValueArray()) {
-            //std::cerr << "_draw_ : " << nv1.first << " " << *nv1.second << "\n";
+            //debugMsg("_draw_ : " + nv1.first + " " + *nv1.second);
 
             if      (nv1.first == "op") {
               op = nv1.second->cast<CJson::String>()->value();
@@ -476,7 +476,7 @@ processFile(const std::string &filename)
           auto *drawObj1 = objValue1->cast<CJson::Object>();
 
           for (const auto &nv1 : drawObj1->nameValueArray()) {
-            //std::cerr << "_ldraw_ : " << nv1.first << " " << *nv1.second << "\n";
+            //debugMsg("_ldraw_ : " + nv1.first + " " + *nv1.second);
 
             if      (nv1.first == "op") {
               op = nv1.second->cast<CJson::String>()->value();
@@ -616,7 +616,7 @@ processFile(const std::string &filename)
         }
       }
       else if (nv.first == "objects") {
-        //std::cerr << "Objects\n";
+        //debugMsg("Objects");
 
         auto *objArray = nv.second->cast<CJson::Array>();
         assert(objArray);
@@ -747,7 +747,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "objects/_draw_ : " << nv2.first << " " << *nv2.second << "\n";
+                  //debugMsg("objects/_draw_ : " + nv2.first + " " + *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -870,7 +870,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "_ldraw_ : " << nv2.first << " " << *nv2.second << "\n";
+                  //debugMsg("_ldraw_ : " + nv2.first + " " + *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -1022,7 +1022,7 @@ processFile(const std::string &filename)
         }
       }
       else if (nv.first == "edges") {
-        //std::cerr << "Edges\n";
+        //debugMsg("Edges");
 
         auto *edgeArray = nv.second->cast<CJson::Array>();
         assert(edgeArray);
@@ -1140,7 +1140,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "edges/_draw_: " << nv2.first << *nv2.second << "\n";
+                  //debugMsg("edges/_draw_: " + nv2.first + *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -1262,7 +1262,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "edges/_hdraw_ : " << nv2.first << " " << *nv2.second << "\n";
+                  //debugMsg("edges/_hdraw_ : " + nv2.first + " " + *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -1385,7 +1385,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "objects/_ldraw_ : " << nv2.first << " " << *nv2.second << "\n";
+                  //debugMsg("objects/_ldraw_ : " + nv2.first + " " + *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -1540,7 +1540,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "objects/_hldraw_ : " << nv2.first << " " << *nv2.second << "\n";
+                  //debugMsg("objects/_hldraw_ : " + nv2.first + " " + *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -1695,7 +1695,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "objects/_tdraw_ : " << nv2.first << " " << *nv2.second << "\n";
+                  //debugMsg("objects/_tdraw_ : " + nv2.first + " " << *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -1870,7 +1870,7 @@ processFile(const std::string &filename)
                 auto *drawObj1 = objValue1->cast<CJson::Object>();
 
                 for (const auto &nv2 : drawObj1->nameValueArray()) {
-                  //std::cerr << "objects/_tldraw_ : " << nv2.first << " " << *nv2.second << "\n";
+                  //debugMsg("objects/_tldraw_ : " + nv2.first + " " + *nv2.second);
 
                   if      (nv2.first == "op") {
                     op = nv2.second->cast<CJson::String>()->value();
@@ -2027,7 +2027,7 @@ processFile(const std::string &filename)
     }
   }
   else {
-    //std::cerr << *value << "\n";
+    //debugMsg(*value);
   }
 
   return true;
@@ -2050,5 +2050,14 @@ errorMsg(const std::string &str) const
 {
   std::cerr << str << "\n";
 }
+
+#if 0
+void
+App::
+debugMsg(const std::string &str) const
+{
+  std::cerr << str << "\n";
+}
+#endif
 
 }

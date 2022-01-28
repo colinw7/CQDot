@@ -7,7 +7,7 @@ class Base {
  public:
   Base() { }
 
- ~Base() { }
+  virtual ~Base() { }
 
   virtual void init() { }
   virtual void term() { }
