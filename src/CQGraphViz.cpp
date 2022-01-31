@@ -1,12 +1,14 @@
-#include <CQDot.h>
+#include <CQGraphViz.h>
 #include <CJson.h>
+#include <CDotParse.h>
+#include <CStrParse.h>
 
 #include <QPainterPath>
 #include <QRectF>
 
 //---
 
-namespace CQDot {
+namespace CQGraphViz {
 
 App::
 App()
@@ -16,7 +18,7 @@ App()
 
 bool
 App::
-processFile(const std::string &filename)
+processJson(const std::string &filename)
 {
   auto *json = new CJson;
 
@@ -274,7 +276,7 @@ processFile(const std::string &filename)
 
     for (const auto &nv : obj->nameValueArray()) {
       if      (nv.first == "bb") {
-        bbox_ = stringToRect(objToQString(nv.second));
+        setBBox(stringToRect(objToQString(nv.second)));
       }
       else if (nv.first == "bgcolor") {
       }
@@ -2033,12 +2035,688 @@ processFile(const std::string &filename)
   return true;
 }
 
+bool
+App::
+processDot(const std::string &filename)
+{
+  CDotParse::Parse parse(filename);
+
+  if (! parse.parse()) {
+    std::cerr << "Parse failed\n";
+    return false;
+  }
+
+  //---
+
+  int objId = 0;
+
+  for (const auto &ng : parse.graphs()) {
+    auto graph = ng.second;
+
+    auto subGraphs = graph->subGraphs();
+
+    auto &attributes = graph->attributes();
+    //std::cerr << "Graph: "; attributes.print(std::cerr);
+
+    //---
+
+    bool ok;
+    auto bbReals = attributes.getReals("bb", ok);
+    if (! ok) { std::cerr << "No bb\n"; continue; }
+    if (bbReals.size() != 4) { std::cerr << "Invalid bb\n"; continue; }
+    auto bbox = QRectF(bbReals[0], bbReals[1], bbReals[2], bbReals[3]);
+    setBBox(bbox);
+
+    auto fontSize = attributes.getReal("fontsize", ok); // font size in points
+
+    //---
+
+    auto addNode = [&](const CDotParse::NodeP &node) {
+      auto &attributes = node->attributes();
+
+      bool ok;
+
+      auto w = 72*attributes.getReal("width", ok); // width in inches
+      if (! ok) { std::cerr << "No width\n"; return; }
+      auto h = 72*attributes.getReal("height", ok); // height in inches
+      if (! ok) { std::cerr << "No height\n"; return; }
+
+      auto posReals = attributes.getReals("pos", ok); // center in points
+      if (! ok) { std::cerr << "No pos\n"; return; }
+      if (posReals.size() != 2) { std::cerr << "Invalid pos\n"; return; }
+      auto pos = QPointF(posReals[0], posReals[1]);
+
+      //std::cerr << "node " << w << " " << h << " " << pos.x() << " " << pos.y() << "\n";
+
+      auto object = std::make_shared<Object>();
+
+      object->setType(Object::Type::OBJECT);
+
+      object->setId(++objId);
+      object->setName(QString::fromStdString(node->name()));
+
+      object->setPos(pos);
+      object->setWidth(w);
+      object->setHeight(h);
+
+      objects_.push_back(object);
+    };
+
+    //---
+
+    for (const auto &node : graph->nodes()) {
+      addNode(node.second);
+    }
+
+    //---
+
+    for (const auto &subGraph : subGraphs) {
+      //auto &attributes = subGraph->attributes();
+      //std::cerr << "Subgraph: "; attributes.print(std::cerr);
+
+      if (ok) setFontSize(fontSize);
+
+      //---
+
+      for (const auto &node : subGraph->nodes()) {
+        addNode(node.second);
+      }
+    }
+  }
+
+  for (const auto &ng : parse.graphs()) {
+    auto graph = ng.second;
+
+    auto subGraphs = graph->subGraphs();
+
+    for (const auto &subGraph : subGraphs) {
+      for (const auto &edge : subGraph->edges()) {
+        auto *fromNode = edge->fromNode();
+        auto *toNode   = edge->toNode();
+
+        auto *from = findObject(QString::fromStdString(fromNode->name()));
+        auto *to   = findObject(QString::fromStdString(toNode  ->name()));
+
+        if (! from || ! to) {
+          std::cerr << "No from/to\n";
+          continue;
+        }
+
+        auto edgeObj = std::make_shared<Object>();
+
+        edgeObj->setType(Object::Type::EDGE);
+
+        edgeObj->setId(++objId);
+
+        from->addDestEdge(edgeObj.get());
+        to  ->addSrcEdge (edgeObj.get());
+
+        edgeObj->setHeadId(from->id());
+        edgeObj->setTailId(to  ->id());
+
+        edges_.push_back(edgeObj);
+      }
+    }
+  }
+
+  return true;
+}
+
+#if 0
+bool
+App::
+processDot1(const std::string &filename)
+{
+  FILE *fp = fopen(filename.c_str(), "r");
+  if (! fp) return false;
+
+  auto getc = [&](int &c) { c = fgetc(fp); return true; };
+
+  auto readLine = [&](std::string &line) {
+    int c;
+
+    if (! getc(c))
+      return false;
+
+    if (c == EOF)
+      return false;
+
+    line = "";
+
+    while (c != EOF && c != '\n') {
+      if (c == '\\') {
+        if (getc(c)) {
+          if (c != '\n') {
+            line += '\\';
+
+            line += static_cast<char>(c);
+          }
+        }
+        else
+          line += '\\';
+      }
+      else
+        line += static_cast<char>(c);
+
+      if (! getc(c))
+        return false;
+    }
+
+    return true;
+  };
+
+  enum class State {
+    NONE,
+    DIGRAPH,
+    GRAPH,
+    NODE,
+    DATA,
+    ATTRIBUTES
+  };
+
+  using NameValues = std::map<QString, QString>;
+
+  //---
+
+  struct ObjectData {
+    void printAttributes(const NameValues &attributes) const {
+      for (const auto &nv : attributes)
+        std::cerr << " " << nv.first.toStdString() << "=" << nv.second.toStdString();
+    };
+
+    double getReal(const QString &name, bool &ok) const {
+      ok = true;
+      double r = 0.0;
+      auto p = attributes.find(name);
+      if (p == attributes.end()) { ok = false; return 0.0; }
+      r = (*p).second.toDouble(&ok);
+      return r;
+    }
+
+    QPointF getPoint(const QString &name, bool &ok) const {
+      ok = true;
+      QPointF point;
+      auto p = attributes.find(name);
+      if (p == attributes.end()) { ok = false; return point; }
+      auto strs = (*p).second.split(",");
+      if (strs.length() != 2) { ok = false; return point; }
+      bool ok1, ok2;
+      auto x = strs[0].toDouble(&ok1);
+      auto y = strs[1].toDouble(&ok2);
+      if (! ok1 || ! ok2) return point;
+      point = QPointF(x, y);
+      return point;
+    }
+
+    QRectF getRect(const QString &name, bool &ok) const {
+      ok = true;
+      QRectF rect;
+      auto p = attributes.find(name);
+      if (p == attributes.end()) { ok = false; return rect; }
+      auto strs = (*p).second.split(",");
+      if (strs.length() != 4) { ok = false; return rect; }
+      bool ok1, ok2, ok3, ok4;
+      auto x = strs[0].toDouble(&ok1);
+      auto y = strs[1].toDouble(&ok2);
+      auto w = strs[2].toDouble(&ok3);
+      auto h = strs[3].toDouble(&ok4);
+      if (! ok1 || ! ok2 || ! ok3 || ! ok4) return rect;
+      rect = QRectF(x, y, w, h);
+      return rect;
+    }
+
+    NameValues attributes;
+  };
+
+  struct Graph : public ObjectData {
+    void print() const {
+      std::cerr << "graph attrs["; printAttributes(attributes); std::cerr << "]\n";
+    }
+  };
+
+  struct Node : public ObjectData {
+    void print() const {
+      std::cerr << "node attrs["; printAttributes(attributes); std::cerr << "]\n";
+    }
+  };
+
+  struct NodeData : public ObjectData {
+    std::string name;
+
+    void print() const {
+      std::cerr << "nodeData name=" << name;
+      std::cerr << " attrs["; printAttributes(attributes); std::cerr << "]\n";
+    }
+  };
+
+  using Nodes = std::vector<NodeData>;
+
+  struct EdgeData : public ObjectData {
+    std::string from;
+    std::string to;
+
+    void print() const {
+      std::cerr << "edgeData from=" << from << " to=" << to;
+      std::cerr << " attrs["; printAttributes(attributes); std::cerr << "]\n";
+    }
+  };
+
+  using Edges = std::vector<EdgeData>;
+
+  struct Digraph {
+    std::string name;
+    Graph       graph;
+    Node        node;
+    Nodes       nodes;
+    Edges       edges;
+
+    void print() const {
+      std::cerr << "digraph=" << name << "\n";
+
+      graph.print();
+      node .print();
+
+      for (const auto &node : nodes)
+        node.print();
+
+      for (const auto &edge : edges)
+        edge.print();
+    }
+  };
+
+  Digraph digraph;
+
+  Graph    *currentGraph    = nullptr;
+  Node     *currentNode     = nullptr;
+  NodeData *currentNodeData = nullptr;
+  EdgeData *currentEdgeData = nullptr;
+
+  auto resetCurrent = [&]() {
+    currentGraph    = nullptr;
+    currentNode     = nullptr;
+    currentEdgeData = nullptr;
+    currentNodeData = nullptr;
+  };
+
+  //---
+
+  State state { State::NONE };
+
+  std::vector<State> stack;
+
+#if 0
+  auto printState = [&](State s) {
+    std::cerr << "state=";
+    switch (s) {
+      case State::NONE      : std::cerr << "none"; break;
+      case State::DIGRAPH   : std::cerr << "digraph"; break;
+      case State::GRAPH     : std::cerr << "graph"; break;
+      case State::NODE      : std::cerr << "node"; break;
+      case State::DATA      : std::cerr << "data"; break;
+      case State::ATTRIBUTES: std::cerr << "attributes"; break;
+    }
+    std::cerr << "\n";
+  };
+#endif
+
+  auto pushState = [&](State s) {
+    //printState(s);
+
+    stack.push_back(s);
+
+    state = s;
+  };
+
+  auto popState = [&]() {
+    if (! stack.empty()) {
+      stack.pop_back();
+
+      state = stack.back();
+
+      //printState(state);
+    }
+    else
+      std::cerr << "No state\n";
+  };
+
+  auto endCurrent = [&]() {
+    popState();
+    popState();
+
+    resetCurrent();
+  };
+
+  std::string line;
+
+  while (readLine(line)) {
+    //std::cerr << "line=" << line << "\n";
+
+    CStrParse parse(line);
+
+    parse.skipSpace();
+
+    //---
+
+    auto readAttribute = [&](std::string &name, std::string &value) {
+      parse.skipSpace();
+
+      if (parse.eof())
+        return false;
+
+      if (parse.isChar(']'))
+        return false;
+
+      parse.readIdentifier(name);
+
+      parse.skipSpace();
+
+      if (parse.isChar('=')) {
+        parse.skipChar();
+        parse.skipSpace();
+
+        if (parse.isChar('"'))
+          parse.readString(value, /*strip_quotes*/true);
+        else {
+          while (! parse.eof() && ! parse.isSpace() && ! parse.isChar(',') && ! parse.isChar(']'))
+            value += parse.readChar();
+        }
+
+        parse.skipSpace();
+
+        if (parse.isChar(','))
+          parse.skipChar();
+      }
+
+      return true;
+    };
+
+    auto readAttributes = [&](NameValues &attributes) {
+      parse.skipSpace();
+
+      while (! parse.eof()) {
+        std::string name, value;
+
+        if (! readAttribute(name, value))
+          return false;
+
+        attributes[QString::fromStdString(name)] = QString::fromStdString(value);
+      }
+
+      return true;
+    };
+
+    //---
+
+    if      (state == State::NONE) {
+      std::string ident;
+
+      parse.readIdentifier(ident);
+
+      if (ident == "digraph") {
+        pushState(State::DIGRAPH);
+
+        parse.skipSpace();
+
+        parse.readIdentifier(digraph.name);
+
+        parse.skipSpace();
+
+        if (! parse.isChar('{'))
+          std::cerr << "Syntax error '" << line << ";\n";
+
+        //digraph.print();
+      }
+      else {
+        std::cerr << "Unhandled '" << line << ";\n";
+      }
+    }
+    else if (state == State::DIGRAPH) {
+      if (parse.isChar('}')) {
+        popState();
+
+        resetCurrent();
+
+        continue;
+      }
+
+      std::string ident;
+
+      parse.readIdentifier(ident);
+
+      // graph attributes
+      if      (ident == "graph") {
+        pushState(State::GRAPH);
+
+        parse.skipSpace();
+
+        if (parse.isChar('[')) {
+          parse.skipChar();
+
+          pushState(State::ATTRIBUTES);
+
+          readAttributes(digraph.graph.attributes);
+
+          parse.skipSpace();
+
+          if (parse.isString("];"))
+            endCurrent();
+        }
+
+        //digraph.graph.print();
+
+        resetCurrent();
+
+        currentGraph = &digraph.graph;
+      }
+      // node attributes
+      else if (ident == "node") {
+        pushState(State::NODE);
+
+        parse.skipSpace();
+
+        if (parse.isChar('[')) {
+          parse.skipChar();
+
+          pushState(State::ATTRIBUTES);
+
+          readAttributes(digraph.node.attributes);
+
+          parse.skipSpace();
+
+          if (parse.isString("];"))
+            endCurrent();
+        }
+
+        //digraph.node.print();
+
+        resetCurrent();
+
+        currentNode = &digraph.node;
+      }
+      else {
+        pushState(State::DATA);
+
+        parse.skipSpace();
+
+        EdgeData edgeData;
+        NodeData nodeData;
+        bool     isEdge = false;
+
+        if (parse.isString("->")) {
+          edgeData.from = ident;
+
+          parse.skipChars("->");
+
+          parse.skipSpace();
+
+          std::string ident1;
+
+          parse.readIdentifier(edgeData.to);
+
+          isEdge = true;
+        }
+        else {
+          nodeData.name = ident;
+        }
+
+        parse.skipSpace();
+
+        if (parse.isChar('[')) {
+          parse.skipChar();
+
+          pushState(State::ATTRIBUTES);
+
+          if (isEdge)
+            readAttributes(edgeData.attributes);
+          else
+            readAttributes(nodeData.attributes);
+
+          parse.skipSpace();
+
+          if (parse.isString("];"))
+            endCurrent();
+        }
+
+        if (isEdge) {
+          digraph.edges.push_back(edgeData);
+
+          //edgeData.print();
+
+          resetCurrent();
+
+          currentEdgeData = &digraph.edges[digraph.edges.size() - 1];
+        }
+        else {
+          digraph.nodes.push_back(nodeData);
+
+          //nodeData.print();
+
+          resetCurrent();
+
+          currentNodeData = &digraph.nodes[digraph.nodes.size() - 1];
+        }
+      }
+    }
+    else if (state == State::ATTRIBUTES) {
+      if (parse.isString("];")) {
+        endCurrent();
+      }
+      else {
+        if      (currentGraph)
+          readAttributes(currentGraph->attributes);
+        else if (currentNode)
+          readAttributes(currentNode->attributes);
+        else if (currentEdgeData)
+          readAttributes(currentEdgeData->attributes);
+        else if (currentNodeData)
+          readAttributes(currentNodeData->attributes);
+        else {
+          std::cerr << "No current object\n";
+          assert(false);
+        }
+
+        parse.skipSpace();
+
+        if (parse.isString("];")) {
+          endCurrent();
+        }
+      }
+    }
+    else {
+      std::cerr << "Unhandled '" << line << ";\n";
+    }
+  }
+
+  fclose(fp);
+
+  if (isDebug())
+    digraph.print();
+
+  //---
+
+  bool ok;
+  auto bbox = digraph.graph.getRect("bb", ok);
+  if (ok) setBBox(bbox);
+
+  auto fontSize = digraph.graph.getReal("fontsize", ok); // font size in points
+  if (ok) setFontSize(fontSize);
+
+  int objId = 0;
+
+  for (const auto &node : digraph.nodes) {
+    bool ok;
+
+    auto w = 72*node.getReal("width", ok); // width in inches
+    if (! ok) { std::cerr << "No width\n"; continue; }
+    auto h = 72*node.getReal("height", ok); // height in inches
+    if (! ok) { std::cerr << "No height\n"; continue; }
+
+    auto pos = node.getPoint("pos", ok); // center in points
+    if (! ok) { std::cerr << "No pos\n"; continue; }
+
+    //std::cerr << "node " << w << " " << h << " " << pos.x() << " " << pos.y() << "\n";
+
+    auto object = std::make_shared<Object>();
+
+    object->setType(Object::Type::OBJECT);
+
+    object->setId(++objId);
+    object->setName(QString::fromStdString(node.name));
+
+    object->setPos(pos);
+    object->setWidth(w);
+    object->setHeight(h);
+
+    objects_.push_back(object);
+  }
+
+  for (const auto &edge : digraph.edges) {
+    //std::cerr << "edge\n";
+
+    auto *from = findObject(QString::fromStdString(edge.from));
+    auto *to   = findObject(QString::fromStdString(edge.to));
+
+    if (! from || ! to) {
+      std::cerr << "No from/to\n";
+      continue;
+    }
+
+    auto edgeObj = std::make_shared<Object>();
+
+    edgeObj->setType(Object::Type::EDGE);
+
+    edgeObj->setId(++objId);
+
+    from->addDestEdge(edgeObj.get());
+    to  ->addSrcEdge (edgeObj.get());
+
+    edgeObj->setHeadId(from->id());
+    edgeObj->setTailId(to  ->id());
+
+    edges_.push_back(edgeObj);
+  }
+
+  return true;
+}
+#endif
+
 Object *
 App::
 findObject(int id)
 {
   for (auto &object : objects_)
     if (object->id() == id)
+      return object.get();
+
+  return nullptr;
+}
+
+Object *
+App::
+findObject(const QString &name)
+{
+  for (auto &object : objects_)
+    if (object->name() == name)
       return object.get();
 
   return nullptr;

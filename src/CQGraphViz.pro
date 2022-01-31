@@ -1,6 +1,6 @@
 TEMPLATE = lib
 
-TARGET = CQDot
+TARGET = CQGraphViz
 
 DEPENDPATH += .
 
@@ -13,10 +13,10 @@ QMAKE_CXXFLAGS += -std=c++14
 MOC_DIR = .moc
 
 SOURCES += \
-CQDot.cpp \
+CQGraphViz.cpp \
 
 HEADERS += \
-../include/CQDot.h \
+../include/CQGraphViz.h \
 
 OBJECTS_DIR = ../obj
 
@@ -25,3 +25,6 @@ DESTDIR = ../lib
 INCLUDEPATH += \
 ../include \
 ../../CJson/include \
+../../CFile/include \
+../../CStrUtil/include \
+../graphviz/include \

@@ -1,19 +1,28 @@
-#ifndef CQDotTest_H
-#define CQDotTest_H
+#ifndef CQGraphVizTest_H
+#define CQGraphVizTest_H
 
 #include <QWidget>
-#include <CDisplayRange2D.h>
+#include <CQDisplayRange2D.h>
 
-namespace CQDot {
+namespace CQGraphViz {
 class App;
 class Object;
 }
 
-class CQDotTest : public QWidget {
+class CQGraphVizTest : public QWidget {
  public:
-  CQDotTest();
+  enum class Format {
+    JSON,
+    DOT
+  };
 
-  bool processFile(const std::string &filename);
+ public:
+  CQGraphVizTest();
+
+  bool processFile(const std::string &filename, Format format);
+
+  bool isDebug() const;
+  void setDebug(bool b);
 
  private:
   void resizeEvent(QResizeEvent *) override;
@@ -31,17 +40,18 @@ class CQDotTest : public QWidget {
  private:
   QPainterPath windowToPixel(const QPainterPath &p) const;
   QPointF      windowToPixel(const QPointF &p) const;
+  QRectF       windowToPixel(const QRectF &r) const;
   QPointF      pixelToWindow(const QPointF &p) const;
 
   double windowToPixelWidth (double w) const;
   double windowToPixelHeight(double h) const;
 
-  CQDot::Object *findObjectAt(const QPointF &p);
+  CQGraphViz::Object *findObjectAt(const QPointF &p);
 
  private:
-  CQDot::App*     dot_ { nullptr };
-  CDisplayRange2D range_;
-  QPointF         mousePos_;
+  CQGraphViz::App* dot_ { nullptr };
+  CQDisplayRange2D range_;
+  QPointF          mousePos_;
 };
 
 #endif

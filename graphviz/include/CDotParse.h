@@ -109,6 +109,14 @@ class Parse {
 
 //---
 
+namespace Util {
+  double stringToReal(const std::string &s, bool &ok);
+
+  std::vector<double> stringToReals(const std::string &s, bool &ok);
+}
+
+//---
+
 class Attributes {
  public:
   Attributes() { }
@@ -119,6 +127,40 @@ class Attributes {
 
   void setNameValue(const std::string &name, const std::string &value) {
     nameValues_[name] = value;
+  }
+
+  double getReal(const std::string &name, bool &ok) const {
+    auto s = getString(name, ok);
+    if (! ok) return 0.0;
+
+    return Util::stringToReal(s, ok);
+  }
+
+  std::vector<double> getReals(const std::string &name, bool &ok) const {
+    auto s = getString(name, ok);
+    if (! ok) return std::vector<double>();
+
+    return Util::stringToReals(strinpQuotes(s), ok);
+  }
+
+  std::string getString(const std::string &name, bool &ok) const {
+    ok = true;
+    auto p = nameValues_.find(name);
+    if (p == nameValues_.end()) { ok = false; return ""; }
+    return (*p).second;
+  }
+
+  std::string strinpQuotes(const std::string &s) const {
+    int len = s.size();
+    if (len > 1 && s[0] == '"' && s[len - 1] == '"')
+      return s.substr(1, len - 2);
+    return s;
+  }
+
+  void print(std::ostream &os) const {
+    for (const auto &nv: nameValues_) {
+      os << nv.first << "=" << nv.second << "\n";
+    }
   }
 
  private:

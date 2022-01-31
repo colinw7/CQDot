@@ -19,6 +19,7 @@ CPPFLAGS = \
 -std=c++14 \
 -I$(INC_DIR) \
 -I../../../CFile/include \
+-I../../../CStrUtil/include \
 -I.
 
 clean:

@@ -2,7 +2,7 @@ TEMPLATE = app
 
 QT += widgets
 
-TARGET = CQDotTest
+TARGET = CQGraphVizTest
 
 DEPENDPATH += .
 
@@ -13,17 +13,17 @@ QMAKE_CXXFLAGS += -std=c++14
 CONFIG += debug
 
 SOURCES += \
-CQDotTest.cpp \
+CQGraphVizTest.cpp \
 
 HEADERS += \
-CQDotTest.h \
+CQGraphVizTest.h \
 
 DESTDIR     = ../bin
 OBJECTS_DIR = ../obj
 LIB_DIR     = ../lib
 
 PRE_TARGETDEPS = \
-$(LIB_DIR)/libCQDot.a \
+$(LIB_DIR)/libCQGraphViz.a \
 
 INCLUDEPATH = \
 . \
@@ -34,9 +34,9 @@ INCLUDEPATH = \
 
 unix:LIBS += \
 -L$$LIB_DIR \
--L../../CQDot/lib \
+-L../../CQGraphViz/lib \
 -L../../CJson/lib \
 -L../../CUtil/lib \
 -L../../CStrUtil/lib \
 \
--lCQDot -lCJson -lCUtil -lCStrUtil \
+-lCQGraphViz -lCJson -lCUtil -lCStrUtil \

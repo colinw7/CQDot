@@ -1,5 +1,5 @@
-#include <CQDotTest.h>
-#include <CQDot.h>
+#include <CQGraphVizTest.h>
+#include <CQGraphViz.h>
 
 #include <CQPathVisitor.h>
 
@@ -7,6 +7,8 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QToolTip>
+
+#include <iostream>
 
 int
 main(int argc, char **argv)
@@ -19,18 +21,32 @@ main(int argc, char **argv)
 
   std::vector<std::string> files;
 
+  auto format = CQGraphVizTest::Format::JSON;
+  auto debug  = false;
+
   for (int i = 1; i < argc; ++i) {
     if (argv[i][0] == '-') {
       auto arg = std::string(&argv[i][1]);
+
+      if      (arg == "json")
+        format = CQGraphVizTest::Format::JSON;
+      else if (arg == "dot")
+        format = CQGraphVizTest::Format::DOT;
+      else if (arg == "debug")
+        debug = true;
+      else
+        std::cerr << "Invalid options '" << arg << "'\n";
     }
     else
       files.push_back(argv[i]);
   }
 
-  auto *dot = new CQDotTest;
+  auto *dot = new CQGraphVizTest;
+
+  dot->setDebug(debug);
 
   for (const auto &file : files)
-    dot->processFile(file);
+    dot->processFile(file, format);
 
   dot->show();
 
@@ -39,27 +55,44 @@ main(int argc, char **argv)
 
 //---
 
-//---
-
-CQDotTest::
-CQDotTest()
+CQGraphVizTest::
+CQGraphVizTest()
 {
   setMouseTracking(true);
 
-  dot_ = new CQDot::App;
+  dot_ = new CQGraphViz::App;
 }
 
 bool
-CQDotTest::
-processFile(const std::string &filename)
+CQGraphVizTest::
+isDebug() const
 {
-  setWindowTitle(QString("CQDotTest %1").arg(filename.c_str()));
-
-  return dot_->processFile(filename);
+  return dot_->isDebug();
 }
 
-CQDot::Object *
-CQDotTest::
+void
+CQGraphVizTest::
+setDebug(bool b)
+{
+  dot_->setDebug(b);
+}
+
+bool
+CQGraphVizTest::
+processFile(const std::string &filename, Format format)
+{
+  setWindowTitle(QString("CQGraphVizTest %1").arg(filename.c_str()));
+
+  if      (format == Format::JSON)
+    return dot_->processJson(filename);
+  else if (format == Format::DOT)
+    return dot_->processDot(filename);
+  else
+    return false;
+}
+
+CQGraphViz::Object *
+CQGraphVizTest::
 findObjectAt(const QPointF &p)
 {
   for (auto &object : dot_->objects())
@@ -70,7 +103,7 @@ findObjectAt(const QPointF &p)
 }
 
 void
-CQDotTest::
+CQGraphVizTest::
 paintEvent(QPaintEvent *)
 {
   QPainter painter(this);
@@ -78,7 +111,27 @@ paintEvent(QPaintEvent *)
   painter.setRenderHint(QPainter::Antialiasing);
   painter.setRenderHint(QPainter::TextAntialiasing);
 
+  //---
+
+  if (dot_->fontSize() > 0) {
+    auto font = this->font();
+
+    font.setPointSizeF(dot_->fontSize());
+
+    setFont(font);
+  }
+
+  //---
+
   painter.fillRect(rect(), QBrush(QColor(200, 200, 200)));
+
+  //---
+
+  auto bbox = windowToPixel(dot_->bbox());
+
+  painter.fillRect(bbox, QBrush(QColor(255, 255, 255)));
+
+  //---
 
   auto setPixelLineWidth = [&](double pw) {
     auto pen = painter.pen();
@@ -108,64 +161,93 @@ paintEvent(QPaintEvent *)
     setPixelLineWidth(windowToPixelWidth(lw > 0 ? lw : 1));
   };
 
-  auto setWindowLineStyle = [&](const CQDot::StyleData &style) {
+  auto setWindowLineStyle = [&](const CQGraphViz::StyleData &style) {
     setWindowLineWidth(style.lineWidth);
 
-    if      (style.lineStyle == CQDot::LineStyle::DOTTED)
+    if      (style.lineStyle == CQGraphViz::LineStyle::DOTTED)
       setLineDotted();
-    else if (style.lineStyle == CQDot::LineStyle::DASHED)
+    else if (style.lineStyle == CQGraphViz::LineStyle::DASHED)
       setLineDashed();
   };
 
-  auto drawObject = [&](const CQDot::ObjectP &object) {
-    for (auto &path : object->paths()) {
-      path.closePath();
+  auto drawObject = [&](const CQGraphViz::ObjectP &object, bool isEdge) {
+    if (! object->paths().empty() || ! object->lines().empty()) {
+      for (auto &path : object->paths()) {
+        path.closePath();
 
-      auto path1 = windowToPixel(path.path);
+        auto path1 = windowToPixel(path.path);
 
-      if (! object->isInside()) {
-        painter.setBrush(path.bg);
-        painter.setPen  (path.fg);
+        if (! object->isInside()) {
+          painter.setBrush(path.bg);
+          painter.setPen  (path.fg);
 
-        setWindowLineStyle(path.style);
+          setWindowLineStyle(path.style);
+        }
+        else {
+          painter.setBrush(Qt::white);
+          painter.setPen  (Qt::red);
+
+          setPixelLineWidth(4);
+        }
+
+        painter.drawPath(path1);
       }
-      else {
-        painter.setBrush(Qt::white);
-        painter.setPen  (Qt::red);
 
-        setPixelLineWidth(4);
+      for (const auto &line : object->lines()) {
+        auto line1 = windowToPixel(line.path);
+
+        if (! object->isInside()) {
+          painter.setBrush(Qt::NoBrush);
+          painter.setPen  (line.fg);
+
+          setWindowLineStyle(line.style);
+        }
+        else {
+          painter.setBrush(Qt::NoBrush);
+          painter.setPen  (Qt::red);
+
+          setPixelLineWidth(4);
+        }
+
+        painter.drawPath(line1);
       }
-
-      painter.drawPath(path1);
     }
+    else {
+      if (! isEdge) {
+        auto op = windowToPixel(object->pos());
 
-    for (const auto &line : object->lines()) {
-      auto line1 = windowToPixel(line.path);
+        double ow = windowToPixelWidth (object->width ());
+        double oh = windowToPixelHeight(object->height());
 
-      if (! object->isInside()) {
-        painter.setBrush(Qt::NoBrush);
-        painter.setPen  (line.fg);
+        auto rect = QRectF(op.x() - ow/2.0, op.y() - oh/2.0, ow, oh);
 
-        setWindowLineStyle(line.style);
+        painter.setBrush(Qt::white);
+        painter.setPen  (Qt::black);
+
+        painter.drawRect(rect);
       }
       else {
-        painter.setBrush(Qt::NoBrush);
-        painter.setPen  (Qt::red);
+        auto *fromObj = dot_->findObject(object->headId());
+        auto *toObj   = dot_->findObject(object->tailId());
+        if (! fromObj || ! toObj) return;
 
-        setPixelLineWidth(4);
+        auto p1 = windowToPixel(fromObj->pos());
+        auto p2 = windowToPixel(toObj  ->pos());
+
+        painter.setPen(Qt::black);
+
+        painter.drawLine(p1, p2);
       }
-
-      painter.drawPath(line1);
     }
   };
 
-  drawObject(dot_->root());
+  drawObject(dot_->root(), /*isEdge*/false);
 
   for (auto &object : dot_->objects())
-    drawObject(object);
+    drawObject(object, /*isEdge*/false);
 
   for (auto &edge : dot_->edges())
-    drawObject(edge);
+    drawObject(edge, /*isEdge*/true);
 
   auto scaleFontToRect = [&](const QRectF &r, const QString &text) {
     auto f = font();
@@ -187,55 +269,74 @@ paintEvent(QPaintEvent *)
     return f;
   };
 
-  auto drawObjectText = [&](const CQDot::ObjectP &object) {
-    for (const auto &text : object->texts()) {
-      auto pp = windowToPixel(text.pos);
+  auto drawObjectText = [&](const CQGraphViz::ObjectP &object, bool outlineText=false) {
+    if (! object->texts().empty()) {
+      for (const auto &text : object->texts()) {
+        auto pp = windowToPixel(text.pos);
 
-      double pw = windowToPixelWidth (text.width);
-      double ph = windowToPixelHeight(text.size );
+        double pw = windowToPixelWidth (text.width);
+        double ph = windowToPixelHeight(text.size );
 
-      QRectF rect;
+        QRectF rect;
 
-      if      (text.align & Qt::AlignLeft)
-        rect = QRectF(pp.x()         , pp.y() - ph, pw, ph);
-      else if (text.align & Qt::AlignRight)
-        rect = QRectF(pp.x() - pw    , pp.y() - ph, pw, ph);
-      else
-        rect = QRectF(pp.x() - pw/2.0, pp.y() - ph, pw, ph);
+        if      (text.align & Qt::AlignLeft)
+          rect = QRectF(pp.x()         , pp.y() - ph, pw, ph);
+        else if (text.align & Qt::AlignRight)
+          rect = QRectF(pp.x() - pw    , pp.y() - ph, pw, ph);
+        else
+          rect = QRectF(pp.x() - pw/2.0, pp.y() - ph, pw, ph);
 
-      auto f = scaleFontToRect(rect, text.text);
+        auto f = scaleFontToRect(rect, text.text);
 
-      painter.setFont(f);
+        painter.setFont(f);
 
-      if (! object->isInside())
-        painter.setPen(text.fg);
-      else
-        painter.setPen(Qt::red);
+        if (! object->isInside())
+          painter.setPen(text.fg);
+        else
+          painter.setPen(Qt::red);
 
-      //painter.drawText(rect, Qt::AlignCenter, text.text);
+        //painter.drawText(rect, Qt::AlignCenter, text.text);
 
-      QFontMetricsF fm(painter.font());
+        QFontMetricsF fm(painter.font());
 
-      double tx = rect.left();
-      double ty = rect.center().y() + (fm.ascent() - fm.descent())/2.0;
+        double tx = rect.left();
+        double ty = rect.center().y() + (fm.ascent() - fm.descent())/2.0;
 
-      painter.drawText(tx, ty, text.text);
+        painter.drawText(tx, ty, text.text);
 
-      //painter.setPen(Qt::red);
-      //painter.setBrush(Qt::NoBrush);
-      //painter.drawRect(rect);
+        //painter.setPen(Qt::red);
+        //painter.setBrush(Qt::NoBrush);
+        //painter.drawRect(rect);
+      }
+    }
+    else {
+      auto label = object->label();
+
+      if (label == "")
+        label = object->name();
+
+      auto pp = windowToPixel(object->pos());
+
+      QFontMetrics fm(font());
+
+      auto tx = pp.x() - fm.width(label)/2.0;
+      auto ty = pp.y() + (fm.ascent() - fm.descent())/2.0;
+
+      painter.drawText(tx, ty, label);
     }
 
-    auto op = windowToPixel(object->pos());
+    if (outlineText) {
+      auto op = windowToPixel(object->pos());
 
-    double ow = windowToPixelWidth (object->width ());
-    double oh = windowToPixelHeight(object->height());
+      double ow = windowToPixelWidth (object->width ());
+      double oh = windowToPixelHeight(object->height());
 
-    auto rect = QRectF(op.x() - ow/2.0, op.y() - oh, ow, oh);
+      auto rect = QRectF(op.x() - ow/2.0, op.y() - oh/2.0, ow, oh);
 
-    painter.setPen(Qt::red);
-    painter.setBrush(Qt::NoBrush);
-    painter.drawRect(rect);
+      painter.setPen(Qt::red);
+      painter.setBrush(Qt::NoBrush);
+      painter.drawRect(rect);
+    }
   };
 
   drawObjectText(dot_->root());
@@ -262,19 +363,19 @@ paintEvent(QPaintEvent *)
 }
 
 void
-CQDotTest::
+CQGraphVizTest::
 resizeEvent(QResizeEvent *)
 {
   auto bbox = dot_->bbox();
 
-  range_ = CDisplayRange2D(0, 0, width() - 1, height() - 1,
-                           bbox.left(), bbox.top(), bbox.right(), bbox.bottom());
+  range_ = CQDisplayRange2D(0, 0, width() - 1, height() - 1,
+                            bbox.left(), bbox.top(), bbox.right(), bbox.bottom());
 
   range_.setEqualScale(true);
 }
 
 void
-CQDotTest::
+CQGraphVizTest::
 mouseMoveEvent(QMouseEvent *e)
 {
   mousePos_ = pixelToWindow(e->pos());
@@ -303,7 +404,7 @@ mouseMoveEvent(QMouseEvent *e)
 }
 
 void
-CQDotTest::
+CQGraphVizTest::
 keyPressEvent(QKeyEvent *e)
 {
   if      (e->key() == Qt::Key_Plus) {
@@ -329,7 +430,7 @@ keyPressEvent(QKeyEvent *e)
 }
 
 bool
-CQDotTest::
+CQGraphVizTest::
 event(QEvent *e)
 {
   auto escapeText = [&](const QString &str) {
@@ -394,12 +495,12 @@ event(QEvent *e)
 }
 
 QPainterPath
-CQDotTest::
+CQGraphVizTest::
 windowToPixel(const QPainterPath &path) const
 {
   class PathVisitor : public CQPathVisitor::Base {
    public:
-    PathVisitor(const CQDotTest *dot) :
+    PathVisitor(const CQGraphVizTest *dot) :
      dot_(dot) {
     }
 
@@ -433,7 +534,7 @@ windowToPixel(const QPainterPath &path) const
     const QPainterPath &path() const { return path_; }
 
    private:
-    const CQDotTest* dot_ { nullptr };
+    const CQGraphVizTest* dot_ { nullptr };
     QPainterPath     path_;
   };
 
@@ -445,7 +546,7 @@ windowToPixel(const QPainterPath &path) const
 }
 
 double
-CQDotTest::
+CQGraphVizTest::
 windowToPixelWidth(double w) const
 {
   auto p1 = windowToPixel(QPointF(0, 0));
@@ -455,7 +556,7 @@ windowToPixelWidth(double w) const
 }
 
 double
-CQDotTest::
+CQGraphVizTest::
 windowToPixelHeight(double h) const
 {
   auto p1 = windowToPixel(QPointF(0, 0));
@@ -464,8 +565,20 @@ windowToPixelHeight(double h) const
   return std::abs(p2.y() - p1.y());
 }
 
+QRectF
+CQGraphVizTest::
+windowToPixel(const QRectF &r) const
+{
+  double x1, y1, x2, y2;
+
+  range_.windowToPixel(r.left (), r.top   (), &x1, &y1);
+  range_.windowToPixel(r.right(), r.bottom(), &x2, &y2);
+
+  return QRectF(x1, y1, x2 - x1, y2 - y1);
+}
+
 QPointF
-CQDotTest::
+CQGraphVizTest::
 windowToPixel(const QPointF &p) const
 {
   double x, y;
@@ -476,7 +589,7 @@ windowToPixel(const QPointF &p) const
 }
 
 QPointF
-CQDotTest::
+CQGraphVizTest::
 pixelToWindow(const QPointF &p) const
 {
   double x, y;
@@ -487,7 +600,7 @@ pixelToWindow(const QPointF &p) const
 }
 
 QSize
-CQDotTest::
+CQGraphVizTest::
 sizeHint() const
 {
   return QSize(1280, 1024);
