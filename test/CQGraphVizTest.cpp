@@ -32,6 +32,8 @@ main(int argc, char **argv)
         format = CQGraphVizTest::Format::JSON;
       else if (arg == "dot")
         format = CQGraphVizTest::Format::DOT;
+      else if (arg == "xdot")
+        format = CQGraphVizTest::Format::XDOT;
       else if (arg == "debug")
         debug = true;
       else
@@ -85,7 +87,7 @@ processFile(const std::string &filename, Format format)
 
   if      (format == Format::JSON)
     return dot_->processJson(filename);
-  else if (format == Format::DOT)
+  else if (format == Format::DOT || format == Format::XDOT)
     return dot_->processDot(filename);
   else
     return false;

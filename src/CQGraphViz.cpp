@@ -2068,6 +2068,7 @@ processDot(const std::string &filename)
     setBBox(bbox);
 
     auto fontSize = attributes.getReal("fontsize", ok); // font size in points
+    if (! ok) fontSize = -1;
 
     //---
 
@@ -2099,6 +2100,8 @@ processDot(const std::string &filename)
       object->setWidth(w);
       object->setHeight(h);
 
+      object->setRect(QRectF(pos.x(), pos.y(), w, h));
+
       objects_.push_back(object);
     };
 
@@ -2114,7 +2117,8 @@ processDot(const std::string &filename)
       //auto &attributes = subGraph->attributes();
       //std::cerr << "Subgraph: "; attributes.print(std::cerr);
 
-      if (ok) setFontSize(fontSize);
+      if (fontSize > 0)
+        setFontSize(fontSize);
 
       //---
 

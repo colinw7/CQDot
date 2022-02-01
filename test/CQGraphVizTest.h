@@ -13,7 +13,8 @@ class CQGraphVizTest : public QWidget {
  public:
   enum class Format {
     JSON,
-    DOT
+    DOT,
+    XDOT
   };
 
  public:
