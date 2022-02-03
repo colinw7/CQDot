@@ -1,7 +1,7 @@
 #include <CQGraphViz.h>
 #include <CJson.h>
 #include <CDotParse.h>
-#include <CStrParse.h>
+//#include <CStrParse.h>
 
 #include <QPainterPath>
 #include <QRectF>
