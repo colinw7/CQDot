@@ -2060,13 +2060,16 @@ processDot(const std::string &filename)
 
     //---
 
-    bool ok;
-    auto bbReals = attributes.getReals("bb", ok);
-    if (! ok) { std::cerr << "No bb\n"; continue; }
-    if (bbReals.size() != 4) { std::cerr << "Invalid bb\n"; continue; }
-    auto bbox = QRectF(bbReals[0], bbReals[1], bbReals[2], bbReals[3]);
-    setBBox(bbox);
+    if (! graph->parent()) {
+      bool ok;
+      auto bbReals = attributes.getReals("bb", ok);
+      if (! ok) { std::cerr << "No bb\n"; continue; }
+      if (bbReals.size() != 4) { std::cerr << "Invalid bb\n"; continue; }
+      auto bbox = QRectF(bbReals[0], bbReals[1], bbReals[2], bbReals[3]);
+      setBBox(bbox);
+    }
 
+    bool ok;
     auto fontSize = attributes.getReal("fontsize", ok); // font size in points
     if (! ok) fontSize = -1;
 
