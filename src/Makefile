@@ -416,8 +416,7 @@ compiler_clean: compiler_moc_predefs_clean
 ../obj/CQGraphViz.o: CQGraphViz.cpp ../include/CQGraphViz.h \
 		../../CJson/include/CJson.h \
 		../graphviz/include/CDotParse.h \
-		../../CFile/include/CFileParse.h \
-		../../CStrUtil/include/CStrParse.h
+		../../CFile/include/CFileParse.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/CQGraphViz.o CQGraphViz.cpp
 
 ####### Install
