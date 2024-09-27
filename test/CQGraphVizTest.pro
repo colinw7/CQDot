@@ -35,8 +35,12 @@ INCLUDEPATH = \
 unix:LIBS += \
 -L$$LIB_DIR \
 -L../../CQGraphViz/lib \
+-L../../CQDot/graphviz/lib \
 -L../../CJson/lib \
 -L../../CUtil/lib \
+-L../../CFile/lib \
 -L../../CStrUtil/lib \
+-L../../COS/lib \
 \
--lCQGraphViz -lCJson -lCUtil -lCStrUtil \
+-lCQGraphViz -lCGraphViz -lCJson \
+-lCFile -lCUtil -lCStrUtil -lCOS

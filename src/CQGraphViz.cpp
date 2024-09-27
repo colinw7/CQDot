@@ -44,9 +44,9 @@ processJson(const std::string &filename)
 
     Points points;
 
-    int np = coords.size()/2;
+    size_t np = coords.size()/2;
 
-    for (int ip = 0; ip < np; ++ip) {
+    for (size_t ip = 0; ip < np; ++ip) {
       double x = coords[ip*2 + 0];
       double y = coords[ip*2 + 1];
 
@@ -61,9 +61,9 @@ processJson(const std::string &filename)
   auto pointsToPath = [](const Points &points) {
     QPainterPath path;
 
-    int np = points.size();
+    size_t np = points.size();
 
-    for (int ip = 0; ip < np; ++ip) {
+    for (size_t ip = 0; ip < np; ++ip) {
       auto &p = points[ip];
 
       if (ip == 0)
@@ -78,9 +78,9 @@ processJson(const std::string &filename)
   auto pointsToBSpline = [](const Points &points) {
     QPainterPath path;
 
-    int np = points.size();
+    size_t np = points.size();
 
-    for (int ip = 0; ip < np; ++ip) {
+    for (size_t ip = 0; ip < np; ++ip) {
       auto &p = points[ip];
 
       if      (ip == 0)
@@ -166,12 +166,12 @@ processJson(const std::string &filename)
   auto getHexValue = [](const std::string &str) {
     static std::string xchars = "0123456789abcdef";
 
-    int len = str.size();
+    size_t len = str.size();
 
     int hvalue = 0;
 
-    for (int i = 0; i < len; ++i) {
-      char c1 = std::tolower(str[i]);
+    for (size_t i = 0; i < len; ++i) {
+      char c1 = char(std::tolower(str[i]));
 
       auto p = xchars.find(c1);
 
@@ -208,11 +208,11 @@ processJson(const std::string &filename)
       style.lineStyle = LineStyle::DASHED;
     }
     else if (str.substr(0, 13) == "setlinewidth(") {
-      int n = str.size();
+      size_t n = str.size();
 
       std::string sstr;
 
-      for (int i = 13; i < n && std::isdigit(str[i]); ++i)
+      for (size_t i = 13; i < n && std::isdigit(str[i]); ++i)
         sstr += str[i];
 
       style.lineWidth = std::stoi(sstr);
@@ -2042,7 +2042,7 @@ processDot(const std::string &filename)
   CDotParse::Parse parse(filename);
 
   if (! parse.parse()) {
-    std::cerr << "Parse failed\n";
+    //std::cerr << "Parse failed\n";
     return false;
   }
 
@@ -2063,9 +2063,18 @@ processDot(const std::string &filename)
     if (! graph->parent()) {
       bool ok;
       auto bbReals = attributes.getReals("bb", ok);
-      if (! ok) { std::cerr << "No bb\n"; continue; }
-      if (bbReals.size() != 4) { std::cerr << "Invalid bb\n"; continue; }
+      if (! ok) {
+        //std::cerr << "No bb\n";
+        continue;
+      }
+
+      if (bbReals.size() != 4) {
+        //std::cerr << "Invalid bb\n";
+        continue;
+      }
+
       auto bbox = QRectF(bbReals[0], bbReals[1], bbReals[2], bbReals[3]);
+
       setBBox(bbox);
     }
 
@@ -2081,13 +2090,26 @@ processDot(const std::string &filename)
       bool ok;
 
       auto w = 72*attributes.getReal("width", ok); // width in inches
-      if (! ok) { std::cerr << "No width\n"; return; }
+      if (! ok) {
+        // std::cerr << "No width\n";
+        return;
+      }
+
       auto h = 72*attributes.getReal("height", ok); // height in inches
-      if (! ok) { std::cerr << "No height\n"; return; }
+      if (! ok) {
+        // std::cerr << "No height\n";
+        return;
+      }
 
       auto posReals = attributes.getReals("pos", ok); // center in points
-      if (! ok) { std::cerr << "No pos\n"; return; }
-      if (posReals.size() != 2) { std::cerr << "Invalid pos\n"; return; }
+      if (! ok) {
+        // std::cerr << "No pos\n";
+        return;
+      }
+      if (posReals.size() != 2) {
+        // std::cerr << "Invalid pos\n";
+        return;
+      }
       auto pos = QPointF(posReals[0], posReals[1]);
 
       //std::cerr << "node " << w << " " << h << " " << pos.x() << " " << pos.y() << "\n";
@@ -2106,6 +2128,8 @@ processDot(const std::string &filename)
       object->setRect(QRectF(pos.x(), pos.y(), w, h));
 
       objects_.push_back(object);
+
+      //std::cerr << "Add Node " << object->name().toStdString() << " (" << object->id() << ")\n";
     };
 
     //---
@@ -2145,7 +2169,7 @@ processDot(const std::string &filename)
         auto *to   = findObject(QString::fromStdString(toNode  ->name()));
 
         if (! from || ! to) {
-          std::cerr << "No from/to\n";
+          //std::cerr << "No from/to\n";
           continue;
         }
 
@@ -2162,6 +2186,10 @@ processDot(const std::string &filename)
         edgeObj->setTailId(to  ->id());
 
         edges_.push_back(edgeObj);
+
+        //std::cerr << "Add Edge (" << edgeObj->id() << ") : " <<
+        //             from->name().toStdString() << " (" << from->id() << ") -> " <<
+        //             to  ->name().toStdString() << " (" << to  ->id() << ")\n";
       }
     }
   }

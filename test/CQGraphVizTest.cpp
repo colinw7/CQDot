@@ -138,7 +138,7 @@ paintEvent(QPaintEvent *)
   auto setPixelLineWidth = [&](double pw) {
     auto pen = painter.pen();
 
-    pen.setWidth(pw);
+    pen.setWidthF(pw);
 
     painter.setPen(pen);
   };
@@ -304,7 +304,7 @@ paintEvent(QPaintEvent *)
         double tx = rect.left();
         double ty = rect.center().y() + (fm.ascent() - fm.descent())/2.0;
 
-        painter.drawText(tx, ty, text.text);
+        painter.drawText(int(tx), int(ty), text.text);
 
         //painter.setPen(Qt::red);
         //painter.setBrush(Qt::NoBrush);
@@ -321,10 +321,10 @@ paintEvent(QPaintEvent *)
 
       QFontMetrics fm(font());
 
-      auto tx = pp.x() - fm.width(label)/2.0;
+      auto tx = pp.x() - fm.horizontalAdvance(label)/2.0;
       auto ty = pp.y() + (fm.ascent() - fm.descent())/2.0;
 
-      painter.drawText(tx, ty, label);
+      painter.drawText(int(tx), int(ty), label);
     }
 
     if (outlineText) {
@@ -358,10 +358,10 @@ paintEvent(QPaintEvent *)
 
   painter.setPen(Qt::black);
 
-  int tx = width () - fm.width("XXX.XXX XXX.XXX") - 1;
-  int ty = height() - fm.descent() - 1;
+  double tx = width () - fm.width("XXX.XXX XXX.XXX") - 1;
+  double ty = height() - fm.descent() - 1;
 
-  painter.drawText(tx, ty, QString("%1 %2").arg(mousePos_.x()).arg(mousePos_.y()));
+  painter.drawText(int(tx), int(ty), QString("%1 %2").arg(mousePos_.x()).arg(mousePos_.y()));
 }
 
 void

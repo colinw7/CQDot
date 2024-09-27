@@ -148,7 +148,7 @@ class GraphPlacer : public CGraphPlacer {
   CQGraph *graph() const { return graph_; }
 
   void setSize(int w, int h) {
-    int m = graph_->margin();
+   double m = graph_->margin();
 
     range_ = CDisplayRange2D(m, m, w - m - 1, h - m - 1, -1.0, -1.0, 1.0, 1.0);
   }
