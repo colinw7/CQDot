@@ -166,6 +166,9 @@ class Object {
   double height() const { return height_; }
   void setHeight(double r) { height_ = r; }
 
+  const QString &shape() const { return shape_; }
+  void setShape(const QString &s) { shape_ = s; }
+
   const QRectF &rect() const { return rect_; }
   void setRect(const QRectF &v) { rect_ = v; }
 
@@ -222,6 +225,7 @@ class Object {
   QPointF   pos_;
   double    width_  { -1 };
   double    height_ { -1 };
+  QString   shape_;
   QRectF    rect_;
   Paths     paths_;
   Paths     lines_;

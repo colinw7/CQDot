@@ -2112,6 +2112,8 @@ processDot(const std::string &filename)
       }
       auto pos = QPointF(posReals[0], posReals[1]);
 
+      auto shape = attributes.getString("shape", ok); // shape
+
       //std::cerr << "node " << w << " " << h << " " << pos.x() << " " << pos.y() << "\n";
 
       auto object = std::make_shared<Object>();
@@ -2125,7 +2127,9 @@ processDot(const std::string &filename)
       object->setWidth(w);
       object->setHeight(h);
 
-      object->setRect(QRectF(pos.x(), pos.y(), w, h));
+      object->setShape(QString::fromStdString(shape));
+
+      object->setRect(QRectF(pos.x() - w/2.0, pos.y() - h/2.0, w, h));
 
       objects_.push_back(object);
 
