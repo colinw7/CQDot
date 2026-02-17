@@ -134,7 +134,7 @@ readInteger(uint *integer)
 
   if (integer != nullptr) {
     bool ok;
-    *integer = str.toInt(&ok);
+    *integer = uint(str.toInt(&ok));
   }
 
   return true;
@@ -161,7 +161,7 @@ readBaseInteger(uint base, int *integer)
 
   if (integer != nullptr) {
      bool ok;
-    *integer = str.toInt(&ok, base);
+    *integer = str.toInt(&ok, int(base));
     //*integer = CStrUtil::toBaseInteger(str, base);
   }
 
@@ -186,7 +186,7 @@ readBaseInteger(uint base, uint *integer)
 
   if (integer != nullptr) {
     bool ok;
-    *integer = str.toInt(&ok, base);
+    *integer = uint(str.toInt(&ok, int(base)));
     //*integer = CStrUtil::toBaseInteger(str, base);
   }
 
@@ -511,7 +511,7 @@ readChar()
 
   (void) readChar(&c);
 
-  return c;
+  return char(c);
 }
 
 bool
@@ -523,7 +523,7 @@ readChar(char *c)
   if (! readChar(&c1))
     return false;
 
-  *c = c1;
+  *c = char(c1);
 
   return true;
 }
@@ -538,7 +538,7 @@ readChar(uchar *c)
   uchar c1;
 
   if (! buffer_.empty()) {
-    c1 = buffer_[0];
+    c1 = uchar(buffer_[0]);
 
     buffer_.pop_front();
   }
@@ -572,7 +572,7 @@ lookChar()
 
   lookChar(&c);
 
-  return c;
+  return char(c);
 }
 
 char
@@ -583,7 +583,7 @@ lookNextChar()
 
   lookNextChar(&c);
 
-  return c;
+  return char(c);
 }
 
 bool
@@ -595,7 +595,7 @@ lookChar(uchar *c)
 
   if (! buffer_.empty()) {
     if (c)
-      *c = buffer_[0];
+      *c = uchar(buffer_[0]);
   }
   else {
     if (eof1())
@@ -609,7 +609,7 @@ lookChar(uchar *c)
     if (c)
       *c = c1;
 
-    buffer_.push_back(c1);
+    buffer_.push_back(char(c1));
   }
 
   return true;
@@ -624,7 +624,7 @@ lookNextChar(uchar *c)
 
   if      (buffer_.size() > 1) {
     if (c != nullptr)
-      *c = buffer_[1];
+      *c = uchar(buffer_[1]);
   }
   else {
     if (eof1())
@@ -639,7 +639,7 @@ lookNextChar(uchar *c)
       if (c != nullptr)
         *c = c1;
 
-      buffer_.push_back(c1);
+      buffer_.push_back(char(c1));
     }
     else {
       char c1[2];
@@ -648,7 +648,7 @@ lookNextChar(uchar *c)
 
       if (num_read == 2) {
         if (c != nullptr)
-          *c = c1[1];
+          *c = uchar(c1[1]);
 
         buffer_.push_back(c1[0]);
         buffer_.push_back(c1[1]);
@@ -681,7 +681,7 @@ loadLine()
       break;
 
     if (c != '\0')
-      buffer_.push_back(c);
+      buffer_.push_back(char(c));
   }
 }
 
